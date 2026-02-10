@@ -3,7 +3,7 @@ Unit tests for common utilities
 """
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest

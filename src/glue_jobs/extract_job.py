@@ -44,7 +44,6 @@ from pyspark.sql.types import (
     StructField,
     StringType,
     DoubleType,
-    TimestampType,
 )
 
 # Configure logging
@@ -65,9 +64,9 @@ def get_job_parameters():
         'S3_RAW_PREFIX',
         'CHECKPOINT_PREFIX',
     ]
-    
+
     args = getResolvedOptions(sys.argv, required_args)
-    
+
     # Optional arguments with smart defaults
     optional_args = [
         'START_DATE',
@@ -79,13 +78,13 @@ def get_job_parameters():
         'check_run_id',
         'NUM_LOCATIONS',  # New: Number of sensor locations to simulate
     ]
-    
+
     try:
         optional = getResolvedOptions(sys.argv, optional_args)
         args.update(optional)
     except Exception:
         pass
-    
+
     # Set defaults if not provided
     if 'START_DATE' not in args:
         args['START_DATE'] = (date.today() - timedelta(days=365)).isoformat()  # 1 year of data
@@ -97,7 +96,7 @@ def get_job_parameters():
         args['LONGITUDE'] = '13.405'
     if 'NUM_LOCATIONS' not in args:
         args['NUM_LOCATIONS'] = '100'  # 100 locations = 36,500 rows per year
-    
+
     return args
 
 
@@ -112,44 +111,44 @@ def daterange(start: date, end: date):
 def generate_sensor_grid(center_lat: float, center_lon: float, num_locations: int):
     """
     Generate grid of sensor locations around a center point
-    
+
     SMART SENSOR PATTERN:
     - Simulate IoT sensor network across geographic area
     - Each sensor reports weather data for its location
     - Grid covers ~50km x 50km area (realistic city coverage)
     - Generates num_locations sensor coordinates
-    
+
     REAL-WORLD SCENARIO:
     - Smart city with distributed temperature/humidity sensors
     - Agricultural monitoring network
     - Weather station array for climate research
-    
+
     Returns: List of (latitude, longitude, sensor_id) tuples
     """
     import math
-    
+
     sensors = []
-    
+
     # Calculate grid dimensions (roughly square)
     grid_size = int(math.ceil(math.sqrt(num_locations)))
-    
+
     # Each degree is ~111km, so 0.5 degrees = ~55km coverage
     lat_step = 0.5 / grid_size
     lon_step = 0.5 / grid_size
-    
+
     # Start from corner
     start_lat = center_lat - 0.25
     start_lon = center_lon - 0.25
-    
+
     sensor_id = 1
     for i in range(grid_size):
         for j in range(grid_size):
             if sensor_id > num_locations:
                 break
-            
+
             lat = start_lat + (i * lat_step)
             lon = start_lon + (j * lon_step)
-            
+
             sensors.append({
                 'sensor_id': f'SENSOR_{sensor_id:04d}',
                 'latitude': round(lat, 4),
@@ -157,14 +156,14 @@ def generate_sensor_grid(center_lat: float, center_lon: float, num_locations: in
                 'region': f'ZONE_{i}_{j}'
             })
             sensor_id += 1
-    
+
     return sensors
 
 
 def parse_date_string(date_str: str) -> date:
     """
     Parse date string with support for relative dates
-    
+
     INCREMENTAL PATTERN:
     - 'yesterday' → Always process previous day
     - 'today' → Process current day (risky for incomplete data)
@@ -172,7 +171,7 @@ def parse_date_string(date_str: str) -> date:
     """
     date_str = date_str.lower().strip()
     today = date.today()
-    
+
     if date_str == 'yesterday':
         return today - timedelta(days=1)
     elif date_str == 'today':
@@ -194,17 +193,17 @@ def fetch_weather_data_for_date(
 ) -> Dict[str, Any]:
     """
     Fetch weather data for single date
-    
+
     API CALL STRATEGY:
     - One request per date (API limitation)
     - Could batch multiple dates, but max 16 days
     - For historical data, may need thousands of calls
-    
+
     RATE LIMITING:
     - Free tier: ~10,000 requests/day
     - Need to throttle Spark parallelism
     - Implement exponential backoff on 429
-    
+
     ERROR SCENARIOS:
     - Network timeout → Retry
     - API error (5xx) → Retry
@@ -212,7 +211,7 @@ def fetch_weather_data_for_date(
     - Invalid parameters (4xx) → Don't retry, log error
     """
     url = f"{api_endpoint}"
-    
+
     params = {
         'latitude': lat,
         'longitude': lon,
@@ -221,14 +220,14 @@ def fetch_weather_data_for_date(
         'daily': 'temperature_2m_max,temperature_2m_min,precipitation_sum',
         'timezone': 'UTC',
     }
-    
+
     max_retries = 3
     retry_count = 0
-    
+
     while retry_count < max_retries:
         try:
             response = requests.get(url, params=params, timeout=timeout)
-            
+
             # Handle rate limiting
             if response.status_code == 429:
                 wait_time = int(response.headers.get('Retry-After', 60))
@@ -237,12 +236,12 @@ def fetch_weather_data_for_date(
                 time.sleep(wait_time)
                 retry_count += 1
                 continue
-            
+
             response.raise_for_status()
-            
+
             data = response.json()
             daily = data.get('daily', {})
-            
+
             # Extract values with sensor metadata
             return {
                 'dt': target_date.isoformat(),
@@ -250,28 +249,34 @@ def fetch_weather_data_for_date(
                 'region': region or 'UNASSIGNED',
                 'latitude': float(lat),
                 'longitude': float(lon),
-                'temperature_max': float(daily['temperature_2m_max'][0]) if daily.get('temperature_2m_max') else None,
-                'temperature_min': float(daily['temperature_2m_min'][0]) if daily.get('temperature_2m_min') else None,
-                'precipitation': float(daily['precipitation_sum'][0]) if daily.get('precipitation_sum') else None,
+                'temperature_max': (float(daily['temperature_2m_max'][0])
+                                    if daily.get('temperature_2m_max')
+                                    else None),
+                'temperature_min': (float(daily['temperature_2m_min'][0])
+                                    if daily.get('temperature_2m_min')
+                                    else None),
+                'precipitation': (float(daily['precipitation_sum'][0])
+                                  if daily.get('precipitation_sum')
+                                  else None),
                 'source': 'open-meteo',
                 'ingestion_timestamp': datetime.utcnow().isoformat(),
             }
-        
+
         except requests.exceptions.Timeout:
             logger.warning(f"Request timeout (attempt {retry_count + 1}/{max_retries})")
             retry_count += 1
-            
+
             if retry_count >= max_retries:
                 logger.error(f"Failed after {max_retries} retries for date {target_date}")
                 return None
-        
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed for date {target_date}: {e}")
             retry_count += 1
-            
+
             if retry_count >= max_retries:
                 return None
-    
+
     return None
 
 
@@ -282,13 +287,13 @@ def create_spark_dataframe(
 ) -> DataFrame:
     """
     Create Spark DataFrame from list of dicts
-    
+
     SPARK OPTIMIZATION:
     - Use explicit schema (faster than inference)
     - Partition data appropriately (by date)
     - Use Parquet for columnar storage
     - Enable compression (Snappy is good balance)
-    
+
     DATA QUALITY CHECKS:
     - Remove null rows
     - Validate required fields
@@ -297,16 +302,16 @@ def create_spark_dataframe(
     """
     # Convert to Row objects
     row_objects = [Row(**row) for row in rows if row is not None]
-    
+
     if not row_objects:
         logger.warning("No valid rows to create DataFrame")
         return None
-    
+
     # Create DataFrame
     df = spark.createDataFrame(row_objects, schema=schema)
-    
+
     logger.info(f"Created DataFrame with {df.count()} rows")
-    
+
     return df
 
 
@@ -318,24 +323,24 @@ def write_to_s3(
 ) -> None:
     """
     Write DataFrame to S3 as partitioned Parquet
-    
+
     PARTITIONING STRATEGY:
     - Partition by 'dt' (date) for efficient time-range queries
     - Avoid over-partitioning (too many small files)
     - Consider location-based partitioning for multi-location data
-    
+
     FILE SIZE OPTIMIZATION:
     - Target: 128-256 MB per file
     - Too small: Slow metadata operations, high S3 costs
     - Too large: Poor parallelism, long read times
     - Use coalesce() or repartition() to control file count
-    
+
     WRITE MODES:
     - 'append': Add to existing data (standard for daily jobs)
     - 'overwrite': Replace all data (careful!)
     - 'error': Fail if data exists (safe but strict)
     - 'ignore': Skip if exists (silent failures risk)
-    
+
     IDEMPOTENCY PATTERN:
     - Write to temp location first
     - Validate the write
@@ -343,20 +348,20 @@ def write_to_s3(
     - Or use partition overwrite mode
     """
     output_path = f"s3://{s3_bucket}/{s3_prefix}"
-    
+
     logger.info(f"Writing DataFrame to {output_path}")
     logger.info(f"Partition columns: {partition_cols}")
-    
+
     # Optimize file size
     # For small datasets, reduce partitions
     row_count = df.count()
     target_rows_per_file = 100000
     num_partitions = max(1, row_count // target_rows_per_file)
-    
+
     logger.info(f"Repartitioning to {num_partitions} partitions for optimal file size")
-    
+
     df = df.repartition(num_partitions, *partition_cols)
-    
+
     # Write to S3
     try:
         df.write \
@@ -365,9 +370,9 @@ def write_to_s3(
             .format('parquet') \
             .option('compression', 'snappy') \
             .save(output_path)
-        
+
         logger.info(f"Successfully wrote {row_count} rows to {output_path}")
-    
+
     except Exception as e:
         logger.error(f"Failed to write to S3: {e}")
         raise
@@ -380,26 +385,26 @@ def update_checkpoint(
 ) -> None:
     """
     Update checkpoint for incremental processing
-    
+
     CHECKPOINT CONTENTS:
     - last_processed_date: Latest date successfully processed
     - last_run_timestamp: When job completed
     - rows_processed: Total rows in this run
     - status: success/failed
     - next_start_date: Where to start next run
-    
+
     CHECKPOINT ATOMICITY:
     - S3 PutObject is atomic
     - But consider using DynamoDB for stronger consistency
     - Or use versioning + latest pointer pattern
     """
     s3_client = boto3.client('s3')
-    
+
     checkpoint_key = f"{checkpoint_prefix}latest-checkpoint.json"
-    
+
     # Add metadata
     checkpoint_data['updated_at'] = datetime.utcnow().isoformat()
-    
+
     try:
         s3_client.put_object(
             Bucket=s3_bucket,
@@ -407,9 +412,9 @@ def update_checkpoint(
             Body=json.dumps(checkpoint_data, indent=2),
             ContentType='application/json'
         )
-        
+
         logger.info(f"Updated checkpoint: s3://{s3_bucket}/{checkpoint_key}")
-    
+
     except Exception as e:
         logger.error(f"Failed to update checkpoint: {e}")
         # Don't fail job just for checkpoint update
@@ -419,7 +424,7 @@ def update_checkpoint(
 def main():
     """
     Main execution logic
-    
+
     FLOW:
     1. Initialize Spark context
     2. Get job parameters
@@ -430,28 +435,30 @@ def main():
     7. Log metrics
     """
     logger.info("Starting data extraction job")
-    
+
     try:
         # Initialize Spark
         sc = SparkContext.getOrCreate()
         glue_context = GlueContext(sc)
         spark = glue_context.spark_session
-        
+
         # Get parameters
         args = get_job_parameters()
-        
-        logger.info(f"Job parameters: {json.dumps({k: v for k, v in args.items() if 'SECRET' not in k.upper()})}")
-        
+
+        safe_params = {k: v for k, v in args.items()
+                       if 'SECRET' not in k.upper()}
+        logger.info(f"Job parameters: {json.dumps(safe_params)}")
+
         # Parse dates
         start_date = parse_date_string(args['START_DATE'])
         end_date = parse_date_string(args['END_DATE'])
-        
+
         logger.info(f"Processing date range: {start_date} to {end_date}")
-        
+
         # Parse coordinates
         latitude = float(args['LATITUDE'])
         longitude = float(args['LONGITUDE'])
-        
+
         # Define schema with sensor metadata
         schema = StructType([
             StructField('dt', StringType(), False),
@@ -465,27 +472,38 @@ def main():
             StructField('source', StringType(), False),
             StructField('ingestion_timestamp', StringType(), False),
         ])
-        
+
         # Generate sensor grid for distributed collection
         num_locations = int(args.get('NUM_LOCATIONS', 100))
         logger.info(f"Generating sensor grid with {num_locations} locations")
         sensor_locations = generate_sensor_grid(latitude, longitude, num_locations)
-        
-        logger.info(f"Processing {len(sensor_locations)} sensors across {(end_date - start_date).days + 1} days")
-        logger.info(f"Expected total rows: {len(sensor_locations) * ((end_date - start_date).days + 1)}")
-        
+
+        days_count = (end_date - start_date).days + 1
+        logger.info(
+            f"Processing {len(sensor_locations)} sensors "
+            f"across {days_count} days"
+        )
+        logger.info(
+            f"Expected total rows: "
+            f"{len(sensor_locations) * days_count}"
+        )
+
         # Fetch data for each date and sensor location
         rows = []
         failed_fetches = []
         total_expected = len(sensor_locations) * ((end_date - start_date).days + 1)
         processed = 0
-        
+
         for target_date in daterange(start_date, end_date):
             for sensor in sensor_locations:
                 processed += 1
                 if processed % 100 == 0:
-                    logger.info(f"Progress: {processed}/{total_expected} ({processed/total_expected*100:.1f}%)")
-                
+                    progress_pct = processed / total_expected * 100
+                    logger.info(
+                        f"Progress: {processed}/{total_expected} "
+                        f"({progress_pct:.1f}%)"
+                    )
+
                 row_data = fetch_weather_data_for_date(
                     args['API_ENDPOINT'],
                     sensor['latitude'],
@@ -494,7 +512,7 @@ def main():
                     sensor_id=sensor['sensor_id'],
                     region=sensor['region']
                 )
-                
+
                 if row_data:
                     rows.append(row_data)
                 else:
@@ -502,33 +520,33 @@ def main():
                         'date': target_date.isoformat(),
                         'sensor_id': sensor['sensor_id']
                     })
-                    
+
                 # Rate limiting: Small delay every 10 requests
                 if processed % 10 == 0:
                     import time
                     time.sleep(0.1)
-        
+
         # Create DataFrame
         if not rows:
             logger.error("No data fetched successfully")
             raise RuntimeError("No data fetched successfully")
-        
+
         df = create_spark_dataframe(spark, rows, schema)
-        
+
         if df is None:
             logger.error("Failed to create DataFrame")
             raise RuntimeError("Failed to create DataFrame")
-        
+
         logger.info(f"Raw data rows: {df.count()}")
-        
+
         # Apply transformations (THIS IS THE ETL 'T')
         from transformations import apply_transformations, validate_data_quality
         df = apply_transformations(df)
-        
+
         # Validate data quality
         quality_metrics = validate_data_quality(df)
         logger.info(f"Data Quality: {quality_metrics['completeness_rate']:.1f}% complete")
-        
+
         # Write to S3
         write_to_s3(
             df,
@@ -536,7 +554,7 @@ def main():
             args['S3_RAW_PREFIX'],
             partition_cols=['dt']
         )
-        
+
         # Update checkpoint
         checkpoint_data = {
             'last_processed_date': end_date.isoformat(),
@@ -550,13 +568,13 @@ def main():
             'job_name': args['JOB_NAME'],
             'execution_id': args.get('execution_id', 'unknown'),
         }
-        
+
         update_checkpoint(
             args['S3_BUCKET'],
             args['CHECKPOINT_PREFIX'],
             checkpoint_data
         )
-        
+
         # Print summary
         summary = {
             'status': 'success',
@@ -564,21 +582,21 @@ def main():
             'failed_dates_count': len(failed_dates),
             'date_range': f"{start_date} to {end_date}",
         }
-        
+
         logger.info(f"Job completed successfully: {json.dumps(summary)}")
         print(json.dumps(summary))
-        
+
         # Success - let job complete normally
         return
-    
+
     except Exception as e:
         logger.error(f"Job failed with exception: {e}", exc_info=True)
-        
+
         print(json.dumps({
             'status': 'failed',
             'error': str(e),
         }))
-        
+
         # Re-raise to fail the Glue job
         raise
 
