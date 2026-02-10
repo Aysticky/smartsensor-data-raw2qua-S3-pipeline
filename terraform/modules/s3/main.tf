@@ -78,13 +78,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_lake" {
     }
 
     expiration {
-      days = var.data_retention_days
+      days = 455  # 90 days + 365 days in Glacier
     }
   }
 
   rule {
     id     = "clean-incomplete-uploads"
     status = "Enabled"
+
+    filter {}
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
