@@ -2,9 +2,9 @@ name: CI - Test and Validate
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, master]  # Added master
   push:
-    branches: [develop]
+    branches: [develop, master]  # Added master
 
 # CICD STRATEGY:
 # - Run tests on every PR

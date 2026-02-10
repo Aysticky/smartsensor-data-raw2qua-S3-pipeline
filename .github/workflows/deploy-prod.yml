@@ -2,7 +2,7 @@ name: CD - Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]  # Added master branch
   workflow_dispatch:  # Manual trigger
     inputs:
       confirm_deploy:

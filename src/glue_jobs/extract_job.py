@@ -56,26 +56,28 @@ logger = logging.getLogger(__name__)
 
 
 def get_job_parameters():
-    """Get Glue job parameters"""
+    """Get Glue job parameters with defaults for testing"""
+    # Required args with defaults
     required_args = [
         'JOB_NAME',
         'API_ENDPOINT',
         'S3_BUCKET',
         'S3_RAW_PREFIX',
         'CHECKPOINT_PREFIX',
-        'START_DATE',
-        'END_DATE',
-        'LATITUDE',
-        'LONGITUDE',
     ]
     
     args = getResolvedOptions(sys.argv, required_args)
     
-    # Get optional arguments
+    # Optional arguments with smart defaults
     optional_args = [
+        'START_DATE',
+        'END_DATE',
+        'LATITUDE',
+        'LONGITUDE',
         'SECRETS_NAME',
         'execution_id',
         'check_run_id',
+        'NUM_LOCATIONS',  # New: Number of sensor locations to simulate
     ]
     
     try:
@@ -83,6 +85,18 @@ def get_job_parameters():
         args.update(optional)
     except Exception:
         pass
+    
+    # Set defaults if not provided
+    if 'START_DATE' not in args:
+        args['START_DATE'] = (date.today() - timedelta(days=365)).isoformat()  # 1 year of data
+    if 'END_DATE' not in args:
+        args['END_DATE'] = date.today().isoformat()
+    if 'LATITUDE' not in args:
+        args['LATITUDE'] = '52.52'  # Berlin center
+    if 'LONGITUDE' not in args:
+        args['LONGITUDE'] = '13.405'
+    if 'NUM_LOCATIONS' not in args:
+        args['NUM_LOCATIONS'] = '100'  # 100 locations = 36,500 rows per year
     
     return args
 
@@ -93,6 +107,58 @@ def daterange(start: date, end: date):
     while current <= end:
         yield current
         current += timedelta(days=1)
+
+
+def generate_sensor_grid(center_lat: float, center_lon: float, num_locations: int):
+    """
+    Generate grid of sensor locations around a center point
+    
+    SMART SENSOR PATTERN:
+    - Simulate IoT sensor network across geographic area
+    - Each sensor reports weather data for its location
+    - Grid covers ~50km x 50km area (realistic city coverage)
+    - Generates num_locations sensor coordinates
+    
+    REAL-WORLD SCENARIO:
+    - Smart city with distributed temperature/humidity sensors
+    - Agricultural monitoring network
+    - Weather station array for climate research
+    
+    Returns: List of (latitude, longitude, sensor_id) tuples
+    """
+    import math
+    
+    sensors = []
+    
+    # Calculate grid dimensions (roughly square)
+    grid_size = int(math.ceil(math.sqrt(num_locations)))
+    
+    # Each degree is ~111km, so 0.5 degrees = ~55km coverage
+    lat_step = 0.5 / grid_size
+    lon_step = 0.5 / grid_size
+    
+    # Start from corner
+    start_lat = center_lat - 0.25
+    start_lon = center_lon - 0.25
+    
+    sensor_id = 1
+    for i in range(grid_size):
+        for j in range(grid_size):
+            if sensor_id > num_locations:
+                break
+            
+            lat = start_lat + (i * lat_step)
+            lon = start_lon + (j * lon_step)
+            
+            sensors.append({
+                'sensor_id': f'SENSOR_{sensor_id:04d}',
+                'latitude': round(lat, 4),
+                'longitude': round(lon, 4),
+                'region': f'ZONE_{i}_{j}'
+            })
+            sensor_id += 1
+    
+    return sensors
 
 
 def parse_date_string(date_str: str) -> date:
@@ -122,6 +188,8 @@ def fetch_weather_data_for_date(
     lat: float,
     lon: float,
     target_date: date,
+    sensor_id: str = None,
+    region: str = None,
     timeout: int = 30
 ) -> Dict[str, Any]:
     """
@@ -175,9 +243,11 @@ def fetch_weather_data_for_date(
             data = response.json()
             daily = data.get('daily', {})
             
-            # Extract values
+            # Extract values with sensor metadata
             return {
                 'dt': target_date.isoformat(),
+                'sensor_id': sensor_id or 'UNKNOWN',
+                'region': region or 'UNASSIGNED',
                 'latitude': float(lat),
                 'longitude': float(lon),
                 'temperature_max': float(daily['temperature_2m_max'][0]) if daily.get('temperature_2m_max') else None,
@@ -382,9 +452,11 @@ def main():
         latitude = float(args['LATITUDE'])
         longitude = float(args['LONGITUDE'])
         
-        # Define schema
+        # Define schema with sensor metadata
         schema = StructType([
             StructField('dt', StringType(), False),
+            StructField('sensor_id', StringType(), False),
+            StructField('region', StringType(), False),
             StructField('latitude', DoubleType(), False),
             StructField('longitude', DoubleType(), False),
             StructField('temperature_max', DoubleType(), True),
@@ -394,25 +466,47 @@ def main():
             StructField('ingestion_timestamp', StringType(), False),
         ])
         
-        # Fetch data for each date
+        # Generate sensor grid for distributed collection
+        num_locations = int(args.get('NUM_LOCATIONS', 100))
+        logger.info(f"Generating sensor grid with {num_locations} locations")
+        sensor_locations = generate_sensor_grid(latitude, longitude, num_locations)
+        
+        logger.info(f"Processing {len(sensor_locations)} sensors across {(end_date - start_date).days + 1} days")
+        logger.info(f"Expected total rows: {len(sensor_locations) * ((end_date - start_date).days + 1)}")
+        
+        # Fetch data for each date and sensor location
         rows = []
-        failed_dates = []
+        failed_fetches = []
+        total_expected = len(sensor_locations) * ((end_date - start_date).days + 1)
+        processed = 0
         
         for target_date in daterange(start_date, end_date):
-            logger.info(f"Fetching data for {target_date}")
-            
-            row_data = fetch_weather_data_for_date(
-                args['API_ENDPOINT'],
-                latitude,
-                longitude,
-                target_date
-            )
-            
-            if row_data:
-                rows.append(row_data)
-            else:
-                failed_dates.append(target_date.isoformat())
-                logger.warning(f"Failed to fetch data for {target_date}")
+            for sensor in sensor_locations:
+                processed += 1
+                if processed % 100 == 0:
+                    logger.info(f"Progress: {processed}/{total_expected} ({processed/total_expected*100:.1f}%)")
+                
+                row_data = fetch_weather_data_for_date(
+                    args['API_ENDPOINT'],
+                    sensor['latitude'],
+                    sensor['longitude'],
+                    target_date,
+                    sensor_id=sensor['sensor_id'],
+                    region=sensor['region']
+                )
+                
+                if row_data:
+                    rows.append(row_data)
+                else:
+                    failed_fetches.append({
+                        'date': target_date.isoformat(),
+                        'sensor_id': sensor['sensor_id']
+                    })
+                    
+                # Rate limiting: Small delay every 10 requests
+                if processed % 10 == 0:
+                    import time
+                    time.sleep(0.1)
         
         # Create DataFrame
         if not rows:
@@ -424,6 +518,16 @@ def main():
         if df is None:
             logger.error("Failed to create DataFrame")
             raise RuntimeError("Failed to create DataFrame")
+        
+        logger.info(f"Raw data rows: {df.count()}")
+        
+        # Apply transformations (THIS IS THE ETL 'T')
+        from transformations import apply_transformations, validate_data_quality
+        df = apply_transformations(df)
+        
+        # Validate data quality
+        quality_metrics = validate_data_quality(df)
+        logger.info(f"Data Quality: {quality_metrics['completeness_rate']:.1f}% complete")
         
         # Write to S3
         write_to_s3(
@@ -438,8 +542,10 @@ def main():
             'last_processed_date': end_date.isoformat(),
             'start_date': start_date.isoformat(),
             'end_date': end_date.isoformat(),
+            'num_sensors': len(sensor_locations),
             'rows_processed': len(rows),
-            'failed_dates': failed_dates,
+            'failed_fetches': len(failed_fetches),
+            'data_quality_rate': quality_metrics['completeness_rate'],
             'status': 'success',
             'job_name': args['JOB_NAME'],
             'execution_id': args.get('execution_id', 'unknown'),
