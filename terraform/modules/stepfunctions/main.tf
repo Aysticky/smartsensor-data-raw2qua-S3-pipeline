@@ -173,12 +173,8 @@ resource "aws_sfn_state_machine" "pipeline" {
         Parameters = {
           JobName = var.extract_job_name
           Arguments = {
-            "--execution_id.$"   = "$$.Execution.Name"
-            "--check_run_id.$"   = "$.checkResult.Id"
-            "--START_DATE.$"     = "$.input.start_date"
-            "--END_DATE.$"       = "$.input.end_date"
-            "--LATITUDE.$"       = "$.input.latitude"
-            "--LONGITUDE.$"      = "$.input.longitude"
+            "--execution_id.$" = "$$.Execution.Name"
+            "--check_run_id.$" = "$.checkResult.Id"
           }
         }
         ResultPath = "$.extractResult"
