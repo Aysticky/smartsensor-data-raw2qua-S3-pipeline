@@ -1,9 +1,7 @@
 name: CD - Deploy to Dev
 
 on:
-  push:
-    branches: [develop, master]  # Added master branch
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:  # Manual trigger only
 
 # DEV DEPLOYMENT STRATEGY:
 # - Auto-deploy on push to develop
