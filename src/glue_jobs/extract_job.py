@@ -579,7 +579,7 @@ def main():
         summary = {
             'status': 'success',
             'rows_processed': len(rows),
-            'failed_dates_count': len(failed_dates),
+            'failed_fetches_count': len(failed_fetches),
             'date_range': f"{start_date} to {end_date}",
         }
 
