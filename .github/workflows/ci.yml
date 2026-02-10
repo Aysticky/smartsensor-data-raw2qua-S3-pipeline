@@ -1,0 +1,124 @@
+name: CI - Test and Validate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+# CICD STRATEGY:
+# - Run tests on every PR
+# - Validate Terraform plans
+# - Check code quality
+# - Don't deploy from PRs
+
+jobs:
+  python-tests:
+    name: Python Tests and Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: |
+          poetry install --with dev,test
+      
+      - name: Run Black (code formatting)
+        run: |
+          poetry run black --check src/ tests/
+      
+      - name: Run isort (import sorting)
+        run: |
+          poetry run isort --check-only src/ tests/
+      
+      - name: Run Flake8 (linting)
+        run: |
+          poetry run flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203
+      
+      - name: Run MyPy (type checking)
+        run: |
+          poetry run mypy src/ --ignore-missing-imports
+        continue-on-error: true  # Don't fail build on type errors (yet)
+      
+      - name: Run pytest
+        run: |
+          poetry run pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+        continue-on-error: true
+
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+      
+      - name: Terraform Format Check
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform fmt -check -recursive
+      
+      - name: Terraform Init
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform init -backend=false
+      
+      - name: Terraform Validate
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: terraform validate
+      
+      - name: TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+      
+      - name: Run TFLint
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: tflint --init && tflint
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true

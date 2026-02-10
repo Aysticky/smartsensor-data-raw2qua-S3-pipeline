@@ -1,0 +1,91 @@
+name: CD - Deploy to Dev
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:  # Manual trigger
+
+# DEV DEPLOYMENT STRATEGY:
+# - Auto-deploy on push to develop
+# - Use sanders-platform-dev IAM user credentials
+# - Deploy Terraform infrastructure
+# - Upload Glue scripts to S3
+# - No manual approval required
+
+env:
+  AWS_REGION: eu-central-1
+  ENVIRONMENT: dev
+
+jobs:
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    environment: dev
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies and build
+        run: |
+          poetry install
+          poetry build
+      
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init
+      
+      - name: Terraform Plan
+        working-directory: terraform/environments/dev
+        run: terraform plan -out=tfplan
+      
+      - name: Terraform Apply
+        working-directory: terraform/environments/dev
+        run: terraform apply -auto-approve tfplan
+      
+      - name: Get Terraform Outputs
+        id: tf_outputs
+        working-directory: terraform/environments/dev
+        run: |
+          echo "data_bucket=$(terraform output -raw data_bucket_name)" >> $GITHUB_OUTPUT
+          echo "check_job=$(terraform output -raw glue_check_job_name)" >> $GITHUB_OUTPUT
+          echo "extract_job=$(terraform output -raw glue_extract_job_name)" >> $GITHUB_OUTPUT
+      
+      - name: Upload Glue Scripts
+        run: |
+          # Scripts are already uploaded by Terraform, but we can update them here
+          echo "Glue scripts deployed via Terraform"
+      
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Summary - Dev" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** dev" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Data Bucket:** ${{ steps.tf_outputs.outputs.data_bucket }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Check Job:** ${{ steps.tf_outputs.outputs.check_job }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Extract Job:** ${{ steps.tf_outputs.outputs.extract_job }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo " Deployment completed successfully!" >> $GITHUB_STEP_SUMMARY
