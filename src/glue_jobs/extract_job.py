@@ -417,13 +417,13 @@ def main():
         # Create DataFrame
         if not rows:
             logger.error("No data fetched successfully")
-            sys.exit(1)
+            raise RuntimeError("No data fetched successfully")
         
         df = create_spark_dataframe(spark, rows, schema)
         
         if df is None:
             logger.error("Failed to create DataFrame")
-            sys.exit(1)
+            raise RuntimeError("Failed to create DataFrame")
         
         # Write to S3
         write_to_s3(
@@ -462,7 +462,8 @@ def main():
         logger.info(f"Job completed successfully: {json.dumps(summary)}")
         print(json.dumps(summary))
         
-        sys.exit(0)
+        # Success - let job complete normally
+        return
     
     except Exception as e:
         logger.error(f"Job failed with exception: {e}", exc_info=True)
@@ -472,7 +473,8 @@ def main():
             'error': str(e),
         }))
         
-        sys.exit(1)
+        # Re-raise to fail the Glue job
+        raise
 
 
 if __name__ == "__main__":

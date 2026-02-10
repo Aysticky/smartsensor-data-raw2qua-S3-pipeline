@@ -242,18 +242,15 @@ def main():
                 'latency_ms': check_result.get('latency_ms'),
             }))
             
-            sys.exit(0)
+            # Success - let job complete normally
+            return
         else:
             logger.error("API connectivity check FAILED")
             
-            print(json.dumps({
-                'status': 'failed',
-                'message': check_result.get('error_message', 'API check failed'),
-                'error': check_result.get('error'),
-            }))
+            error_msg = check_result.get('error_message', 'API check failed')
             
-            # Exit with error code
-            sys.exit(1)
+            # Raise exception to fail the Glue job
+            raise RuntimeError(f"API connectivity check failed: {error_msg}")
     
     except Exception as e:
         logger.error(f"Job failed with exception: {e}", exc_info=True)
@@ -264,7 +261,8 @@ def main():
             'error': 'job_exception',
         }))
         
-        sys.exit(1)
+        # Re-raise to fail the Glue job
+        raise
 
 
 if __name__ == "__main__":
