@@ -27,7 +27,7 @@ variable "data_bucket_name" {
 variable "api_endpoint" {
   description = "API endpoint URL"
   type        = string
-  default     = "https://api.open-meteo.com/v1/forecast"
+  default     = "https://archive-api.open-meteo.com/v1/archive"
 }
 
 variable "extract_worker_type" {
