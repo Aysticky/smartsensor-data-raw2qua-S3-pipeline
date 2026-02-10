@@ -1,7 +1,12 @@
 name: CD - Deploy to Production
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:  # Manual trigger for production (requires approval)
+    inputs:
+      confirm_deploy:
+        description: 'Type "deploy-to-prod" to confirm'
+        required: true
+        default: ''
     inputs:
       confirm_deploy:
         description: 'Type "deploy-to-prod" to confirm'
