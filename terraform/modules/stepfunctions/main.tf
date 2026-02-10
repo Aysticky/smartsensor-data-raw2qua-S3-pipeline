@@ -158,7 +158,7 @@ resource "aws_sfn_state_machine" "pipeline" {
       }
 
       CheckFailed = {
-        Type = "Fail"
+        Type  = "Fail"
         Cause = "API check failed"
         Error = "CheckJobError"
         # FAILURE HANDLING:
@@ -210,7 +210,7 @@ resource "aws_sfn_state_machine" "pipeline" {
       }
 
       ExtractFailed = {
-        Type = "Fail"
+        Type  = "Fail"
         Cause = "Data extraction failed"
         Error = "ExtractJobError"
         # FAILURE SCENARIOS TO WATCH:
@@ -225,7 +225,7 @@ resource "aws_sfn_state_machine" "pipeline" {
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.sfn_logs.arn}:*"
     include_execution_data = true
-    level                  = "ALL"  # ALL, ERROR, FATAL, OFF
+    level                  = "ALL" # ALL, ERROR, FATAL, OFF
   }
 
   tags = merge(

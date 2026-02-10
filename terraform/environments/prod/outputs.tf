@@ -26,16 +26,16 @@ output "eventbridge_rule_name" {
 output "deployment_summary" {
   description = "Summary of deployed resources"
   value = {
-    environment        = "prod"
-    region             = var.aws_region
-    account_id         = data.aws_caller_identity.current.account_id
-    data_bucket        = module.s3.bucket_name
-    check_job          = module.glue.check_job_name
-    extract_job        = module.glue.extract_job_name
-    state_machine      = module.stepfunctions.state_machine_name
-    schedule_enabled   = true
-    glue_version       = "4.0"
-    worker_type        = "G.1X"
-    num_workers        = 5
+    environment      = "prod"
+    region           = var.aws_region
+    account_id       = data.aws_caller_identity.current.account_id
+    data_bucket      = module.s3.bucket_name
+    check_job        = module.glue.check_job_name
+    extract_job      = module.glue.extract_job_name
+    state_machine    = module.stepfunctions.state_machine_name
+    schedule_enabled = true
+    glue_version     = "4.0"
+    worker_type      = "G.1X"
+    num_workers      = 5
   }
 }

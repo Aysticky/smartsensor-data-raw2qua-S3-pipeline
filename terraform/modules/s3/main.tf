@@ -17,9 +17,9 @@ resource "aws_s3_bucket" "data_lake" {
   tags = merge(
     var.common_tags,
     {
-      Name        = "${var.project_name}-${var.environment}-data-lake"
-      Purpose     = "Raw and qualified data storage"
-      DataClass   = "Sensitive"
+      Name      = "${var.project_name}-${var.environment}-data-lake"
+      Purpose   = "Raw and qualified data storage"
+      DataClass = "Sensitive"
     }
   )
 }
@@ -78,7 +78,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_lake" {
     }
 
     expiration {
-      days = 455  # 90 days + 365 days in Glacier
+      days = 455 # 90 days + 365 days in Glacier
     }
   }
 

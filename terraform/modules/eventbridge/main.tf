@@ -56,18 +56,18 @@ resource "aws_cloudwatch_event_target" "sfn_pipeline" {
   # - Can be overridden manually for backfills
   input = jsonencode({
     input = {
-      start_date = var.default_start_date
-      end_date   = var.default_end_date
-      latitude   = var.default_latitude
-      longitude  = var.default_longitude
-      triggered_by = "eventbridge-schedule"
+      start_date     = var.default_start_date
+      end_date       = var.default_end_date
+      latitude       = var.default_latitude
+      longitude      = var.default_longitude
+      triggered_by   = "eventbridge-schedule"
       execution_date = "$${time}"
     }
   })
 
   retry_policy {
     maximum_retry_attempts       = 2
-    maximum_event_age_in_seconds = 3600  # 1 hour
+    maximum_event_age_in_seconds = 3600 # 1 hour
   }
 
   dead_letter_config {

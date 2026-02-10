@@ -79,27 +79,27 @@ resource "aws_glue_job" "check_api" {
   }
 
   glue_version = var.glue_version
-  
+
   # Lightweight job configuration
-  max_capacity = 1.0  # Minimum for simple checks
-  
+  max_capacity = 1.0 # Minimum for simple checks
+
   # Or use worker_type and number_of_workers for Glue 2.0+
   # worker_type       = "G.1X"
   # number_of_workers = 2
 
-  timeout = 10  # 10 minutes max (should complete in 1-2 minutes)
+  timeout = 10 # 10 minutes max (should complete in 1-2 minutes)
 
   max_retries = 1
 
   default_arguments = {
-    "--enable-metrics"                  = "true"
+    "--enable-metrics"                   = "true"
     "--enable-continuous-cloudwatch-log" = "true"
-    "--enable-spark-ui"                 = "true"
-    "--spark-event-logs-path"           = "s3://${aws_s3_bucket.glue_scripts.id}/spark-logs/"
-    "--job-language"                    = "python"
-    "--TempDir"                         = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
-    "--enable-job-insights"             = "true"
-    
+    "--enable-spark-ui"                  = "true"
+    "--spark-event-logs-path"            = "s3://${aws_s3_bucket.glue_scripts.id}/spark-logs/"
+    "--job-language"                     = "python"
+    "--TempDir"                          = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
+    "--enable-job-insights"              = "true"
+
     # Custom job parameters
     "--API_ENDPOINT"      = var.api_endpoint
     "--SECRETS_NAME"      = "${var.project_name}/${var.environment}/api-credentials"
@@ -134,7 +134,7 @@ resource "aws_glue_job" "extract_data" {
   worker_type       = var.extract_worker_type
   number_of_workers = var.extract_num_workers
 
-  timeout = 120  # 2 hours max
+  timeout = 120 # 2 hours max
 
   max_retries = 2
 
@@ -148,26 +148,26 @@ resource "aws_glue_job" "extract_data" {
   # }
 
   default_arguments = {
-    "--enable-metrics"                  = "true"
+    "--enable-metrics"                   = "true"
     "--enable-continuous-cloudwatch-log" = "true"
-    "--enable-spark-ui"                 = "true"
-    "--spark-event-logs-path"           = "s3://${aws_s3_bucket.glue_scripts.id}/spark-logs/"
-    "--job-language"                    = "python"
-    "--TempDir"                         = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
-    "--enable-job-insights"             = "true"
-    "--job-bookmark-option"             = "job-bookmark-disable"  # We handle checkpoints manually
-    
+    "--enable-spark-ui"                  = "true"
+    "--spark-event-logs-path"            = "s3://${aws_s3_bucket.glue_scripts.id}/spark-logs/"
+    "--job-language"                     = "python"
+    "--TempDir"                          = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
+    "--enable-job-insights"              = "true"
+    "--job-bookmark-option"              = "job-bookmark-disable" # We handle checkpoints manually
+
     # Custom job parameters
-    "--API_ENDPOINT"       = var.api_endpoint
-    "--SECRETS_NAME"       = "${var.project_name}/${var.environment}/api-credentials"
-    "--S3_BUCKET"          = var.data_bucket_name
-    "--S3_RAW_PREFIX"      = "raw/openmeteo/"
-    "--CHECKPOINT_PREFIX"  = "checkpoints/extract-job/"
-    "--START_DATE"         = var.default_start_date
-    "--END_DATE"           = var.default_end_date
-    "--LATITUDE"           = var.default_latitude
-    "--LONGITUDE"          = var.default_longitude
-    
+    "--API_ENDPOINT"      = var.api_endpoint
+    "--SECRETS_NAME"      = "${var.project_name}/${var.environment}/api-credentials"
+    "--S3_BUCKET"         = var.data_bucket_name
+    "--S3_RAW_PREFIX"     = "raw/openmeteo/"
+    "--CHECKPOINT_PREFIX" = "checkpoints/extract-job/"
+    "--START_DATE"        = var.default_start_date
+    "--END_DATE"          = var.default_end_date
+    "--LATITUDE"          = var.default_latitude
+    "--LONGITUDE"         = var.default_longitude
+
     # Spark configuration for optimization
     "--conf" = "spark.sql.adaptive.enabled=true --conf spark.sql.adaptive.coalescePartitions.enabled=true"
   }

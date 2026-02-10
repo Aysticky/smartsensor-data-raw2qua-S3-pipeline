@@ -16,7 +16,7 @@ variable "state_machine_arn" {
 variable "schedule_expression" {
   description = "Cron or rate expression for schedule"
   type        = string
-  default     = "cron(0 2 * * ? *)"  # 2 AM UTC daily
+  default     = "cron(0 2 * * ? *)" # 2 AM UTC daily
 }
 
 variable "schedule_enabled" {
