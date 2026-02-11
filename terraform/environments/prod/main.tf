@@ -135,24 +135,24 @@ module "eventbridge" {
 module "athena" {
   source = "../../modules/athena"
 
-  project_name           = local.project_name
-  environment            = local.environment
-  data_bucket_name       = module.s3.bucket_name
-  raw_data_prefix        = "raw/"
-  glue_crawler_role_arn  = module.iam.glue_execution_role_arn
-  crawler_enabled        = true # Prod: daily crawler at 4 AM UTC
-  common_tags            = local.common_tags
+  project_name          = local.project_name
+  environment           = local.environment
+  data_bucket_name      = module.s3.bucket_name
+  raw_data_prefix       = "raw/"
+  glue_crawler_role_arn = module.iam.glue_execution_role_arn
+  crawler_enabled       = true # Prod: daily crawler at 4 AM UTC
+  common_tags           = local.common_tags
 }
 
 # DynamoDB Module (for incremental checkpointing)
 module "dynamodb" {
   source = "../../modules/dynamodb"
 
-  project_name         = local.project_name
-  environment          = local.environment
-  enable_pitr          = true # Prod: enable point-in-time recovery
-  initial_start_date   = "2026-01-01"
-  common_tags          = local.common_tags
+  project_name       = local.project_name
+  environment        = local.environment
+  enable_pitr        = true # Prod: enable point-in-time recovery
+  initial_start_date = "2026-01-01"
+  common_tags        = local.common_tags
 }
 
 # PRODUCTION-SPECIFIC MONITORING

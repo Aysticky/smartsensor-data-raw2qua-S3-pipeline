@@ -89,7 +89,7 @@ def get_job_parameters():
 
     # Set defaults if not provided
     use_incremental = args.get('USE_INCREMENTAL', 'true').lower() == 'true'
-    
+
     if 'START_DATE' not in args:
         if use_incremental and 'CHECKPOINT_TABLE' in args:
             # Will be set from checkpoint
@@ -113,14 +113,14 @@ def get_job_parameters():
 def get_checkpoint(table_name: str, job_name: str) -> Dict[str, Any]:
     """
     Get last processed date from DynamoDB checkpoint
-    
+
     Returns dict with:
     - last_processed_date: Last date successfully processed (YYYY-MM-DD)
     - status: Current job status
     """
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(table_name)
-    
+
     try:
         response = table.get_item(Key={'job_name': job_name})
         if 'Item' in response:
@@ -146,7 +146,7 @@ def update_checkpoint(
 ):
     """
     Update DynamoDB checkpoint after successful processing
-    
+
     Args:
         table_name: DynamoDB table name
         job_name: Job identifier
@@ -156,7 +156,7 @@ def update_checkpoint(
     """
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(table_name)
-    
+
     try:
         response = table.update_item(
             Key={'job_name': job_name},
@@ -464,13 +464,13 @@ def write_to_s3(
         raise
 
 
-def update_checkpoint(
+def update_checkpoint_s3(
     s3_bucket: str,
     checkpoint_prefix: str,
     checkpoint_data: Dict[str, Any]
 ) -> None:
     """
-    Update checkpoint for incremental processing
+    Update checkpoint metadata in S3 for incremental processing
 
     CHECKPOINT CONTENTS:
     - last_processed_date: Latest date successfully processed
@@ -538,11 +538,11 @@ def main():
         # Check for incremental processing with checkpoint
         use_incremental = args.get('USE_INCREMENTAL', 'true').lower() == 'true'
         checkpoint_table = args.get('CHECKPOINT_TABLE')
-        
+
         if use_incremental and checkpoint_table:
             logger.info("Using incremental processing with DynamoDB checkpoint")
             checkpoint = get_checkpoint(checkpoint_table, 'extract_weather_data')
-            
+
             if checkpoint.get('last_processed_date'):
                 # Start from day after last processed date
                 last_date = parse_date_string(checkpoint['last_processed_date'])
@@ -563,7 +563,7 @@ def main():
             # Non-incremental mode
             start_date = parse_date_string(args['START_DATE'])
             logger.info("Non-incremental mode - using provided date range")
-        
+
         end_date = parse_date_string(args['END_DATE'])
 
         # Skip if no new data to process
@@ -687,7 +687,7 @@ def main():
                 execution_id=args.get('execution_id')
             )
             logger.info(f"Checkpoint updated to {end_date.isoformat()}")
-        
+
         # Also save metadata to S3 (existing logic)
         checkpoint_data = {
             'last_processed_date': end_date.isoformat(),
@@ -702,7 +702,7 @@ def main():
             'execution_id': args.get('execution_id', 'unknown'),
         }
 
-        update_checkpoint(
+        update_checkpoint_s3(
             args['S3_BUCKET'],
             args['CHECKPOINT_PREFIX'],
             checkpoint_data

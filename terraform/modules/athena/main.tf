@@ -68,11 +68,11 @@ resource "aws_glue_catalog_table" "weather_data" {
   table_type = "EXTERNAL_TABLE"
 
   parameters = {
-    "classification"        = "parquet"
-    "compressionType"       = "snappy"
-    "typeOfData"           = "file"
-    "parquet.compression"  = "SNAPPY"
-    "projection.enabled"   = "false"
+    "classification"      = "parquet"
+    "compressionType"     = "snappy"
+    "typeOfData"          = "file"
+    "parquet.compression" = "SNAPPY"
+    "projection.enabled"  = "false"
   }
 
   storage_descriptor {
@@ -90,135 +90,135 @@ resource "aws_glue_catalog_table" "weather_data" {
     }
 
     columns {
-      name = "sensor_id"
-      type = "string"
+      name    = "sensor_id"
+      type    = "string"
       comment = "Unique sensor identifier"
     }
 
     columns {
-      name = "date"
-      type = "string"
+      name    = "date"
+      type    = "string"
       comment = "Date of observation"
     }
 
     columns {
-      name = "latitude"
-      type = "double"
+      name    = "latitude"
+      type    = "double"
       comment = "Sensor latitude"
     }
 
     columns {
-      name = "longitude"
-      type = "double"
+      name    = "longitude"
+      type    = "double"
       comment = "Sensor longitude"
     }
 
     columns {
-      name = "region"
-      type = "string"
+      name    = "region"
+      type    = "string"
       comment = "Geographic region"
     }
 
     columns {
-      name = "temperature_2m_max"
-      type = "double"
+      name    = "temperature_2m_max"
+      type    = "double"
       comment = "Maximum temperature (Celsius)"
     }
 
     columns {
-      name = "temperature_2m_min"
-      type = "double"
+      name    = "temperature_2m_min"
+      type    = "double"
       comment = "Minimum temperature (Celsius)"
     }
 
     columns {
-      name = "temperature_2m_mean"
-      type = "double"
+      name    = "temperature_2m_mean"
+      type    = "double"
       comment = "Mean temperature (Celsius)"
     }
 
     columns {
-      name = "precipitation_sum"
-      type = "double"
+      name    = "precipitation_sum"
+      type    = "double"
       comment = "Total precipitation (mm)"
     }
 
     columns {
-      name = "temperature_max_f"
-      type = "double"
+      name    = "temperature_max_f"
+      type    = "double"
       comment = "Maximum temperature (Fahrenheit)"
     }
 
     columns {
-      name = "temperature_min_f"
-      type = "double"
+      name    = "temperature_min_f"
+      type    = "double"
       comment = "Minimum temperature (Fahrenheit)"
     }
 
     columns {
-      name = "temperature_avg"
-      type = "double"
+      name    = "temperature_avg"
+      type    = "double"
       comment = "Average temperature (Celsius)"
     }
 
     columns {
-      name = "temperature_range"
-      type = "double"
+      name    = "temperature_range"
+      type    = "double"
       comment = "Temperature range (max - min)"
     }
 
     columns {
-      name = "temp_category"
-      type = "string"
+      name    = "temp_category"
+      type    = "string"
       comment = "Temperature category (freezing/cold/mild/warm/hot)"
     }
 
     columns {
-      name = "precipitation_level"
-      type = "string"
+      name    = "precipitation_level"
+      type    = "string"
       comment = "Precipitation level (none/light/moderate/heavy/extreme)"
     }
 
     columns {
-      name = "is_complete"
-      type = "boolean"
+      name    = "is_complete"
+      type    = "boolean"
       comment = "Data completeness flag"
     }
 
     columns {
-      name = "data_quality_score"
-      type = "int"
+      name    = "data_quality_score"
+      type    = "int"
       comment = "Data quality score (0-100)"
     }
 
     columns {
-      name = "region_avg_temp"
-      type = "double"
+      name    = "region_avg_temp"
+      type    = "double"
       comment = "Regional average temperature"
     }
 
     columns {
-      name = "region_total_precipitation"
-      type = "double"
+      name    = "region_total_precipitation"
+      type    = "double"
       comment = "Regional total precipitation"
     }
 
     columns {
-      name = "processed_at"
-      type = "string"
+      name    = "processed_at"
+      type    = "string"
       comment = "Processing timestamp"
     }
 
     columns {
-      name = "processing_version"
-      type = "string"
+      name    = "processing_version"
+      type    = "string"
       comment = "ETL processing version"
     }
   }
 
   partition_keys {
-    name = "date"
-    type = "string"
+    name    = "date"
+    type    = "string"
     comment = "Partition by date (YYYY-MM-DD)"
   }
 }

@@ -167,7 +167,7 @@ resource "aws_glue_job" "extract_data" {
     "--job-language"                     = "python"
     "--TempDir"                          = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
     "--enable-job-insights"              = "true"
-    "--job-bookmark-option"              = "job-bookmark-disable" # We handle checkpoints manually
+    "--job-bookmark-option"              = "job-bookmark-disable"                                             # We handle checkpoints manually
     "--extra-py-files"                   = "s3://${aws_s3_bucket.glue_scripts.id}/scripts/transformations.py" # Include transformations module
 
     # Custom job parameters
