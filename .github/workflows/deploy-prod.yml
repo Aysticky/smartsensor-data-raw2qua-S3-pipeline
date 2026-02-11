@@ -103,6 +103,28 @@ jobs:
           echo "extract_job=$(terraform output -raw glue_extract_job_name)" >> $GITHUB_OUTPUT
           echo "state_machine=$(terraform output -raw state_machine_arn)" >> $GITHUB_OUTPUT
       
+      - name: Trigger Pipeline Execution
+        id: trigger_pipeline
+        run: |
+          # Get state machine ARN from Terraform output
+          STATE_MACHINE_ARN=$(cd terraform/environments/prod && terraform output -raw state_machine_arn)
+          
+          # Generate unique execution name
+          EXECUTION_NAME="prod-deploy-$(date +%s)"
+          
+          # Start execution
+          EXECUTION_ARN=$(aws stepfunctions start-execution \
+            --state-machine-arn "$STATE_MACHINE_ARN" \
+            --name "$EXECUTION_NAME" \
+            --query 'executionArn' \
+            --output text)
+          
+          echo "execution_arn=$EXECUTION_ARN" >> $GITHUB_OUTPUT
+          echo "execution_name=$EXECUTION_NAME" >> $GITHUB_OUTPUT
+          
+          echo "Production pipeline triggered: $EXECUTION_NAME"
+          echo "Execution ARN: $EXECUTION_ARN"
+      
       - name: Create Deployment Tag
         run: |
           git config user.name "GitHub Actions"
@@ -122,7 +144,11 @@ jobs:
           echo "- **Extract Job:** ${{ steps.tf_outputs.outputs.extract_job }}" >> $GITHUB_STEP_SUMMARY
           echo "- **State Machine:** ${{ steps.tf_outputs.outputs.state_machine }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo " Production deployment completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Pipeline Execution" >> $GITHUB_STEP_SUMMARY
+          echo "- **Execution Name:** ${{ steps.trigger_pipeline.outputs.execution_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ARN:** ${{ steps.trigger_pipeline.outputs.execution_arn }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Production deployment completed and pipeline triggered!" >> $GITHUB_STEP_SUMMARY
 
   notify:
     name: Send Deployment Notification
