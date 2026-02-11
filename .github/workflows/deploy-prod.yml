@@ -14,10 +14,11 @@ on:
         default: ''
 
 # PRODUCTION DEPLOYMENT STRATEGY:
-# - Manual approval required (GitHub environment protection)
-# - Deploy only from main branch
+# - Manual trigger only (no auto-deploy)
+# - Can deploy from main branch after testing in dev
 # - Use production AWS credentials
 # - Create deployment tag
+# - Type "deploy-to-prod" to confirm deployment
 # - Send notification on completion
 
 env:

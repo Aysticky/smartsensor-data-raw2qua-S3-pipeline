@@ -2,11 +2,11 @@ name: CD - Deploy to Dev
 
 on:
   push:
-    branches: [master]  # Auto-deploy dev when code is pushed to master
+    branches: [develop]  # Auto-deploy dev when code is pushed to develop
   workflow_dispatch:  # Also allow manual trigger
 
 # DEV DEPLOYMENT STRATEGY:
-# - Auto-deploy on push to develop
+# - Auto-deploy on push to develop branch
 # - Use sanders-platform-dev IAM user credentials
 # - Deploy Terraform infrastructure
 # - Upload Glue scripts to S3
