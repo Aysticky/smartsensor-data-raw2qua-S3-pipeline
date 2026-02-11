@@ -87,7 +87,9 @@ def get_job_parameters():
 
     # Set defaults if not provided
     if 'START_DATE' not in args:
-        args['START_DATE'] = (date.today() - timedelta(days=365)).isoformat()  # 1 year of data
+        args['START_DATE'] = (
+            date.today() - timedelta(days=30)
+        ).isoformat()  # 30 days (realistic)
     if 'END_DATE' not in args:
         args['END_DATE'] = date.today().isoformat()
     if 'LATITUDE' not in args:
@@ -95,7 +97,7 @@ def get_job_parameters():
     if 'LONGITUDE' not in args:
         args['LONGITUDE'] = '13.405'
     if 'NUM_LOCATIONS' not in args:
-        args['NUM_LOCATIONS'] = '100'  # 100 locations = 36,500 rows per year
+        args['NUM_LOCATIONS'] = '10'  # 10 locations = 300 rows for 30 days
 
     return args
 
