@@ -16,6 +16,10 @@ on:
 # - Type "deploy-to-prod" to confirm deployment
 # - Send notification on completion
 
+permissions:
+  contents: write  # Allow creating tags and pushing to repo
+  id-token: write  # For AWS OIDC (future improvement)
+
 env:
   AWS_REGION: eu-central-1
   ENVIRONMENT: prod
@@ -45,6 +49,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
       
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
