@@ -178,6 +178,8 @@ resource "aws_glue_job" "extract_data" {
     "--CHECKPOINT_PREFIX" = "checkpoints/extract-job/"
     "--START_DATE"        = var.default_start_date
     "--END_DATE"          = var.default_end_date
+    "--CHECKPOINT_TABLE"  = var.checkpoint_table_name
+    "--USE_INCREMENTAL"   = tostring(var.use_incremental)
     "--LATITUDE"          = var.default_latitude
     "--LONGITUDE"         = var.default_longitude
 
