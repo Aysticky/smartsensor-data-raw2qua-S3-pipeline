@@ -31,9 +31,10 @@ This pipeline demonstrates real-world big data engineering patterns:
 
 ## Data Volume
 
-- **Sensor Grid**: 100 virtual sensors across geographic area
-- **Time Range**: 365 days of historical data
-- **Expected Rows**: 36,500+ (100 sensors × 365 days)
+- **Sensor Grid**: 10 virtual sensors by default (configurable to 100+)
+- **Time Range**: 30 days of historical data (configurable to 365+)
+- **Expected Rows**: 300 (10 sensors × 30 days) - realistic for API limits
+- **Large Test Mode**: 36,500+ rows (100 sensors × 365 days) - for demo purposes
 - **With Transformations**: 15+ columns including derived metrics
 - **Output Format**: Partitioned Parquet with Snappy compression
 
@@ -318,13 +319,147 @@ smartsensor-data-raw2qua-S3-pipeline/
 │
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                 # Tests + linting
-│       ├── deploy-dev.yml         # Auto-deploy to dev
-│       └── deploy-prod.yml        # Manual prod deployment
+│       ├── ci.yml                 # Tests + linting (PR + push)
+│       ├── deploy-dev.yml         # Auto-deploy to dev (develop branch)
+│       └── deploy-prod.yml        # Manual prod deployment (main branch)
 │
 ├── tests/                         # Unit tests
 ├── pyproject.toml                 # Poetry dependencies
 └── README.md                      # This file
 ```
 
+## CI/CD Pipeline
 
+### Branching Strategy
+
+```
+feature/xyz  →  PR  →  develop  →  Auto-deploy to DEV  →  Test
+                                                              │
+                                                              ▼
+                        main    ←  PR (after testing)  ←  develop
+                          │
+                          ▼
+                    Manual deploy to PROD (with approval)
+```
+
+### Workflows
+
+#### 1. **CI - Test and Validate** (`ci.yml`)
+- **Triggers**: Push/PR to `develop` or `main`
+- **Steps**:
+  1. Run unit tests with pytest
+  2. Lint with flake8
+  3. Format check with terraform fmt
+  4. Security scan
+- **Purpose**: Ensure code quality before deployment
+
+#### 2. **CD - Deploy to Dev** (`deploy-dev.yml`)
+- **Triggers**: 
+  - Auto: Push to `develop` branch (after CI passes)
+  - Manual: workflow_dispatch
+- **Steps**:
+  1. Checkout code
+  2. Configure AWS credentials (sanders-platform-dev IAM user)
+  3. Terraform apply to dev environment
+  4. Upload Glue scripts to S3
+- **Purpose**: Continuous deployment to dev for testing
+
+#### 3. **CD - Deploy to Production** (`deploy-prod.yml`)
+- **Triggers**: Manual only (workflow_dispatch)
+- **Requirements**:
+  - Must type "deploy-to-prod" to confirm
+  - Deploy from `main` branch only
+  - After successful dev testing
+- **Steps**:
+  1. Manual approval confirmation
+  2. Configure AWS credentials (sanders-platform-prod IAM user)
+  3. Terraform apply to prod environment
+  4. Upload Glue scripts to S3
+  5. Create deployment tag
+- **Purpose**: Controlled production releases
+
+### Development Workflow
+
+1. **Create feature branch**
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b feature/your-feature
+   ```
+
+2. **Make changes and test locally**
+   ```bash
+   poetry run pytest tests/
+   poetry run flake8 src/
+   ```
+
+3. **Push and create PR to develop**
+   ```bash
+   git add .
+   git commit -m "feat: your feature description"
+   git push origin feature/your-feature
+   ```
+   - Create PR on GitHub: `feature/your-feature` → `develop`
+   - CI runs automatically
+   - After CI passes and PR approved, merge to develop
+   - **Dev environment auto-deploys**
+
+4. **Test in dev environment**
+   ```bash
+   # Manually trigger pipeline to test
+   aws stepfunctions start-execution \
+     --state-machine-arn arn:aws:states:eu-central-1:ACCOUNT_ID:stateMachine:smartsensors-dev-pipeline \
+     --name "test-$(date +%s)"
+   
+   # Monitor execution
+   aws stepfunctions describe-execution --execution-arn <arn>
+   
+   # Check S3 for output
+   aws s3 ls s3://smartsensors-dev-raw-data-ACCOUNT_ID/raw/openmeteo/ --recursive
+   ```
+
+5. **Promote to production**
+   ```bash
+   # After successful dev testing
+   git checkout main
+   git pull origin main
+   git merge develop
+   git push origin main
+   
+   # Then manually trigger prod deployment on GitHub:
+   # Actions → CD - Deploy to Production → Run workflow
+   # Type "deploy-to-prod" to confirm
+   ```
+
+## Data Volume Configuration
+
+### Default Settings (Realistic for API limits)
+- **Sensors**: 10 locations
+- **Time Range**: 30 days
+- **Expected Rows**: 300 (10 × 30)
+- **API Calls**: 300 requests
+- **Execution Time**: ~5-10 minutes
+
+### Testing Thousands of Rows
+To test with more data, update [extract_job.py](src/glue_jobs/extract_job.py):
+
+```python
+# Default (realistic)
+NUM_LOCATIONS_DEFAULT = 10  # 10 sensors
+days_back = 30              # 30 days = 300 rows
+
+# Large test (for demo)
+NUM_LOCATIONS_DEFAULT = 100  # 100 sensors
+days_back = 365              # 365 days = 36,500 rows
+```
+
+**Warning**: Large configurations (36,500 rows) may:
+- Take 2+ hours to execute
+- Hit API rate limits
+- Timeout with default Glue settings (2 workers, 120 min timeout)
+
+**Recommendations for large tests:**
+- Increase Glue workers in [terraform/modules/glue/main.tf](terraform/modules/glue/main.tf)
+- Increase timeout beyond 120 minutes
+
+# test cicd comment

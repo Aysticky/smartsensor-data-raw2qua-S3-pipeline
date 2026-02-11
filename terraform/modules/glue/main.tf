@@ -67,6 +67,18 @@ resource "aws_s3_object" "extract_job_script" {
   }
 }
 
+# Upload transformations module
+resource "aws_s3_object" "transformations_module" {
+  bucket = aws_s3_bucket.glue_scripts.id
+  key    = "scripts/transformations.py"
+  source = "${path.module}/../../../src/glue_jobs/transformations.py"
+  etag   = filemd5("${path.module}/../../../src/glue_jobs/transformations.py")
+
+  tags = {
+    JobType = "module"
+  }
+}
+
 # Glue Job: Check API availability
 resource "aws_glue_job" "check_api" {
   name     = "${var.project_name}-${var.environment}-check-api"
@@ -156,6 +168,7 @@ resource "aws_glue_job" "extract_data" {
     "--TempDir"                          = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
     "--enable-job-insights"              = "true"
     "--job-bookmark-option"              = "job-bookmark-disable" # We handle checkpoints manually
+    "--extra-py-files"                   = "s3://${aws_s3_bucket.glue_scripts.id}/scripts/transformations.py" # Include transformations module
 
     # Custom job parameters
     "--API_ENDPOINT"      = var.api_endpoint

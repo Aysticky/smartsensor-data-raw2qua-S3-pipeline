@@ -2,12 +2,12 @@ name: CI - Test and Validate
 
 on:
   pull_request:
-    branches: [main, develop, master]  # Added master
+    branches: [main, develop]
   push:
-    branches: [develop, master]  # Added master
+    branches: [develop, main]
 
 # CICD STRATEGY:
-# - Run tests on every PR
+# - Run tests on every PR and push to develop or main
 # - Validate Terraform plans
 # - Check code quality
 # - Don't deploy from PRs
