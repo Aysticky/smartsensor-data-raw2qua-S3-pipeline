@@ -89,7 +89,7 @@ module "iam" {
   aws_account_id             = local.aws_account_id
   data_bucket_arn            = module.s3.bucket_arn
   scripts_bucket_arn         = module.glue.scripts_bucket_arn
-  enable_dynamodb_checkpoint = false # Dev: use S3 for checkpoints
+  enable_dynamodb_checkpoint = true # Enable DynamoDB checkpoints
   common_tags                = local.common_tags
 }
 
@@ -97,16 +97,18 @@ module "iam" {
 module "glue" {
   source = "../../modules/glue"
 
-  project_name        = local.project_name
-  environment         = local.environment
-  glue_role_arn       = module.iam.glue_execution_role_arn
-  glue_version        = "4.0"
-  data_bucket_name    = module.s3.bucket_name
-  extract_worker_type = "G.1X"
-  extract_num_workers = 2 # Dev: minimal workers
-  default_start_date  = "2026-02-01"
-  default_end_date    = "2026-02-10"
-  common_tags         = local.common_tags
+  project_name          = local.project_name
+  environment           = local.environment
+  glue_role_arn         = module.iam.glue_execution_role_arn
+  glue_version          = "4.0"
+  data_bucket_name      = module.s3.bucket_name
+  extract_worker_type   = "G.1X"
+  extract_num_workers   = 2 # Dev: minimal workers
+  default_start_date    = "2026-02-01"
+  default_end_date      = "2026-02-10"
+  checkpoint_table_name = module.dynamodb.table_name
+  use_incremental       = true # Enable incremental processing
+  common_tags           = local.common_tags
 }
 
 # Step Functions Module
@@ -134,4 +136,28 @@ module "eventbridge" {
   schedule_enabled    = false               # Dev: manual triggers only by default
   dlq_arn             = aws_sqs_queue.dlq.arn
   common_tags         = local.common_tags
+}
+
+# Athena Module
+module "athena" {
+  source = "../../modules/athena"
+
+  project_name          = local.project_name
+  environment           = local.environment
+  data_bucket_name      = module.s3.bucket_name
+  raw_data_prefix       = "raw/"
+  glue_crawler_role_arn = module.iam.glue_execution_role_arn
+  crawler_enabled       = false # Dev: manual crawler runs
+  common_tags           = local.common_tags
+}
+
+# DynamoDB Module (for incremental checkpointing)
+module "dynamodb" {
+  source = "../../modules/dynamodb"
+
+  project_name       = local.project_name
+  environment        = local.environment
+  enable_pitr        = false # Dev: no point-in-time recovery
+  initial_start_date = "2026-01-01"
+  common_tags        = local.common_tags
 }

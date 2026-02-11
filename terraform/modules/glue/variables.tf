@@ -66,6 +66,18 @@ variable "default_longitude" {
   default     = "4.9041"
 }
 
+variable "checkpoint_table_name" {
+  description = "DynamoDB table name for checkpoints (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "use_incremental" {
+  description = "Enable incremental processing with checkpoints"
+  type        = bool
+  default     = false
+}
+
 variable "common_tags" {
   description = "Common tags for all resources"
   type        = map(string)

@@ -167,7 +167,7 @@ resource "aws_glue_job" "extract_data" {
     "--job-language"                     = "python"
     "--TempDir"                          = "s3://${aws_s3_bucket.glue_scripts.id}/temp/"
     "--enable-job-insights"              = "true"
-    "--job-bookmark-option"              = "job-bookmark-disable" # We handle checkpoints manually
+    "--job-bookmark-option"              = "job-bookmark-disable"                                             # We handle checkpoints manually
     "--extra-py-files"                   = "s3://${aws_s3_bucket.glue_scripts.id}/scripts/transformations.py" # Include transformations module
 
     # Custom job parameters
@@ -178,6 +178,8 @@ resource "aws_glue_job" "extract_data" {
     "--CHECKPOINT_PREFIX" = "checkpoints/extract-job/"
     "--START_DATE"        = var.default_start_date
     "--END_DATE"          = var.default_end_date
+    "--CHECKPOINT_TABLE"  = var.checkpoint_table_name
+    "--USE_INCREMENTAL"   = tostring(var.use_incremental)
     "--LATITUDE"          = var.default_latitude
     "--LONGITUDE"         = var.default_longitude
 
