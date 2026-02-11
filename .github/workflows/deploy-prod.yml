@@ -7,11 +7,6 @@ on:
         description: 'Type "deploy-to-prod" to confirm'
         required: true
         default: ''
-    inputs:
-      confirm_deploy:
-        description: 'Type "deploy-to-prod" to confirm'
-        required: true
-        default: ''
 
 # PRODUCTION DEPLOYMENT STRATEGY:
 # - Manual trigger only (no auto-deploy)
