@@ -135,3 +135,16 @@ module "eventbridge" {
   dlq_arn             = aws_sqs_queue.dlq.arn
   common_tags         = local.common_tags
 }
+
+# Athena Module
+module "athena" {
+  source = "../../modules/athena"
+
+  project_name           = local.project_name
+  environment            = local.environment
+  data_bucket_name       = module.s3.bucket_name
+  raw_data_prefix        = "raw/"
+  glue_crawler_role_arn  = module.iam.glue_execution_role_arn
+  crawler_enabled        = false # Dev: manual crawler runs
+  common_tags            = local.common_tags
+}
