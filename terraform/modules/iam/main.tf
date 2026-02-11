@@ -171,7 +171,7 @@ data "aws_iam_policy_document" "glue_dynamodb" {
       "dynamodb:Query",
     ]
     resources = [
-      "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/${var.project_name}-${var.environment}-checkpoint",
+      "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/${var.project_name}-${var.environment}-checkpoints",
     ]
   }
 

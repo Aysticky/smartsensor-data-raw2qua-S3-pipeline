@@ -402,14 +402,28 @@ feature/xyz  →  PR  →  develop  →  Auto-deploy to DEV  →  Test
    - Create PR on GitHub: `feature/your-feature` → `develop`
    - CI runs automatically
    - After CI passes and PR approved, merge to develop
-   - **Dev environment auto-deploys**
+   - **Dev environment auto-deploys via GitHub Actions**
+   - **Pipeline execution automatically triggered**
 
 4. **Test in dev environment**
+   
+   **Option A: Automatic (Recommended)**
+   - After merging PR to develop, GitHub Actions automatically:
+     1. Runs CI tests
+     2. Deploys infrastructure with Terraform
+     3. Uploads latest Glue scripts to S3
+     4. **Triggers Step Functions pipeline execution**
+   - Check progress:
+     - GitHub: Actions tab → "CD - Deploy to Dev" workflow
+     - AWS Console: Step Functions → `smartsensors-dev-pipeline`
+   
+   **Option B: Manual Trigger**
+   - If you need to run the pipeline manually (without deploying):
    ```bash
-   # Manually trigger pipeline to test
+   # Manually trigger pipeline
    aws stepfunctions start-execution \
      --state-machine-arn arn:aws:states:eu-central-1:ACCOUNT_ID:stateMachine:smartsensors-dev-pipeline \
-     --name "test-$(date +%s)"
+     --name "manual-test-$(date +%s)"
    
    # Monitor execution
    aws stepfunctions describe-execution --execution-arn <arn>
@@ -420,16 +434,31 @@ feature/xyz  →  PR  →  develop  →  Auto-deploy to DEV  →  Test
 
 5. **Promote to production**
    ```bash
-   # After successful dev testing
+   # After successful dev testing, merge develop to main
    git checkout main
    git pull origin main
    git merge develop
    git push origin main
-   
-   # Then manually trigger prod deployment on GitHub:
-   # Actions → CD - Deploy to Production → Run workflow
-   # Type "deploy-to-prod" to confirm
    ```
+   
+   **Then trigger production deployment on GitHub:**
+   1. Go to **Actions** tab
+   2. Click **CD - Deploy to Production** workflow
+   3. Click **Run workflow** button
+   4. Branch: `main`
+   5. Type exactly: `deploy-to-prod` (confirmation required)
+   6. Click **Run workflow**
+   
+   This will:
+   - Deploy prod infrastructure with Terraform
+   - Upload Glue scripts to prod S3
+   - Create deployment tag (`prod-YYYYMMDD-HHMMSS`)
+   - **Automatically trigger prod pipeline execution**
+   
+   **Monitor production execution:**
+   - GitHub: Actions tab → Deployment summary shows execution ARN
+   - AWS Console: Step Functions → `smartsensors-prod-pipeline`
+   - Execution name: `prod-deploy-<timestamp>`
 
 ## Data Volume Configuration
 

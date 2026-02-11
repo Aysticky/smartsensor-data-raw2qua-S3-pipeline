@@ -23,6 +23,26 @@ output "eventbridge_rule_name" {
   value       = module.eventbridge.schedule_rule_name
 }
 
+output "athena_workgroup_name" {
+  description = "Name of the Athena workgroup"
+  value       = module.athena.athena_workgroup_name
+}
+
+output "glue_database_name" {
+  description = "Name of the Glue Data Catalog database"
+  value       = module.athena.glue_database_name
+}
+
+output "glue_table_name" {
+  description = "Name of the weather data table"
+  value       = module.athena.glue_table_name
+}
+
+output "query_example" {
+  description = "Example Athena query"
+  value       = module.athena.query_example
+}
+
 output "deployment_summary" {
   description = "Summary of deployed resources"
   value = {
