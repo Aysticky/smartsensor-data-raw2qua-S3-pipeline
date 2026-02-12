@@ -96,9 +96,9 @@ resource "aws_glue_catalog_table" "weather_data" {
     }
 
     columns {
-      name    = "date"
+      name    = "region"
       type    = "string"
-      comment = "Date of observation"
+      comment = "Geographic region"
     }
 
     columns {
@@ -114,33 +114,33 @@ resource "aws_glue_catalog_table" "weather_data" {
     }
 
     columns {
-      name    = "region"
-      type    = "string"
-      comment = "Geographic region"
-    }
-
-    columns {
-      name    = "temperature_2m_max"
+      name    = "temperature_max"
       type    = "double"
       comment = "Maximum temperature (Celsius)"
     }
 
     columns {
-      name    = "temperature_2m_min"
+      name    = "temperature_min"
       type    = "double"
       comment = "Minimum temperature (Celsius)"
     }
 
     columns {
-      name    = "temperature_2m_mean"
+      name    = "precipitation"
       type    = "double"
-      comment = "Mean temperature (Celsius)"
+      comment = "Total precipitation (mm)"
     }
 
     columns {
-      name    = "precipitation_sum"
-      type    = "double"
-      comment = "Total precipitation (mm)"
+      name    = "source"
+      type    = "string"
+      comment = "Data source (open-meteo)"
+    }
+
+    columns {
+      name    = "ingestion_timestamp"
+      type    = "string"
+      comment = "When data was ingested"
     }
 
     columns {
@@ -217,7 +217,7 @@ resource "aws_glue_catalog_table" "weather_data" {
   }
 
   partition_keys {
-    name    = "date"
+    name    = "dt"
     type    = "string"
     comment = "Partition by date (YYYY-MM-DD)"
   }
